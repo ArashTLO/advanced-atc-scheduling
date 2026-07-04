@@ -20,7 +20,7 @@ def parse_input(file_path):
     
     # دیکشنری برای نگهداری لیست پروازهای هر ترمینال
     terminals_tasks = {"T1": [], "T2": [], "T3": [], "T4": []}
-    current_terminal = 1
+    current_terminal = 0
     
     # پردازش تسک‌ها (از خط چهارم به بعد)
     for line in cleaned_lines[3:]:

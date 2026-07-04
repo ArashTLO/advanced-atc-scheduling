@@ -21,26 +21,20 @@ class Tower:
         
         while self.is_running:
             with self.cv:
-                # ۱. چاپ وضعیت سیستم (لاگ لحظه‌ای) - در مرحله ۴ تکمیل می‌شود
-                # print(f"TIME: {self.global_time}")
-                
-                # ۲. جلو بردن زمان جهانی
                 self.global_time += 1
                 self.cores_finished_this_tick = 0
                 
-                # ۳. بیدار کردن تمام هسته‌ها برای شروع کار در تیک جدید
+                # بیدار کردن همه
                 self.cv.notify_all()
                 
-                # ۴. برج مراقبت منتظر می‌ماند تا تمام هسته‌ها کارشان در این تیک تمام شود
+                # منتظر ماندن برای تمام شدن کار هسته‌ها در این تیک
                 while self.cores_finished_this_tick < self.total_active_cores and self.is_running:
                     self.cv.wait()
-                    
-                # در اینجا یک تیک کامل شده است و حلقه برای تیک بعدی تکرار می‌شود
                 
-                # شرط توقف موقت برای تست (جلوگیری از حلقه بی‌نهایت)
-                if self.global_time >= 20: 
+                # برای تست فاز اول، بگذار شبیه‌سازی تا تیک ۳۰ جلو برود تا خروجی پروازها را ببینی
+                if self.global_time >= 30: 
                     self.is_running = False
-                    self.cv.notify_all() # بیدار کردن بقیه برای خروج
+                    self.cv.notify_all()
                     print("🗼 Tower: Simulation Ended.")
 
     def wait_for_next_tick(self, core_local_time):
