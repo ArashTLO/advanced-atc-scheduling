@@ -30,13 +30,13 @@ class Task:
 
     def __repr__(self):
         return f"<{self.name} | State: {self.state.value} | Rem: {self.rem_duration}>"
-
+    
 # کلاس مدیریت منابع فرودگاه با رعایت انحصار متقابل (Mutual Exclusion) 
 class AirportResources:
     def __init__(self, r1_count, r2_count, r3_count):
-        self.total_r1 = int(r1_count)
-        self.total_r2 = int(r2_count)
-        self.total_r3 = int(r3_count)
+        self.total_r1 = int(r1_count)           # تعداد Runway ها 
+        self.total_r2 = int(r2_count)           # تعداد گیت ها
+        self.total_r3 = int(r3_count)           # تعداد fuel truck ها
         
         self.available_r1 = self.total_r1
         self.available_r2 = self.total_r2
@@ -54,6 +54,11 @@ class AirportResources:
                 self.available_r3 -= r3
                 return True
             return False
+
+    def can_acquire(self, available_r1, available_r2, available_r3, r1, r2, r3):
+        if available_r1 >= r1 and available_r2 >= r2 and available_r3 >= r3:
+            return True
+        else : return False
 
     def release(self, r1, r2, r3):
         """آزادسازی منابع پس از اتمام کار هواپیما"""

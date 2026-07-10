@@ -2,6 +2,8 @@ import threading
 from input_parser import parse_input
 from tower import Tower
 from terminal1 import Terminal1
+from terminal2 import Terminal2
+from terminal3 import Terminal3
 from logger import print_live_log
 from data_structure import State
 
@@ -9,10 +11,15 @@ def main():
     resources, tasks_by_terminal = parse_input('input.txt')
     
     # تغییر مهم: ۴ هسته فعال (۳ هسته ترمینال + ۱ نخ اینجکتور)
-    TOTAL_ACTIVE_CORES = 4
+    TOTAL_ACTIVE_CORES = 6
     
     my_tower = Tower(resources, TOTAL_ACTIVE_CORES)
     t1 = Terminal1(my_tower)
+    t2 = Terminal2(my_tower)
+    t3 = Terminal3(my_tower)
+    my_tower.terminal1 = t1
+    my_tower.terminal2 = t2
+    my_tower.terminal3 = t3
     
     def task_injector():
         local_time = 0
@@ -25,16 +32,21 @@ def main():
             for task in tasks_by_terminal["T1"]:
                 if task.arrival_time <= local_time and task.state == State.NEW:
                     t1.add_new_task(task)
+
+            for task in tasks_by_terminal["T2"]:
+                if task.arrival_time <= local_time and task.state == State.NEW:
+                    t2.add_new_task(task)
                     
             print_live_log(my_tower, t1)
             
-            # این خط اضافه شد: اینجکتور هم باید اتمام کارش رو اعلام کنه
+            # اینجکتور هم باید اتمام کارش رو اعلام کنه
             my_tower.signal_core_done()
 
     injector_thread = threading.Thread(target=task_injector)
     injector_thread.start()
     
     t1.start_cores()
+    t2.start_cores()
     my_tower.start_simulation()
     
     injector_thread.join()

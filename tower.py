@@ -4,6 +4,10 @@ class Tower:
     def __init__(self, resources, total_active_cores):
         self.global_time = 0
         self.resources = resources
+
+        self.terminal1 = None
+        self.terminal2 = None
+        self.terminal3 = None
         
         # تعداد کل هسته‌هایی (Thread) که در تمام ترمینال‌ها در حال اجرا هستند
         self.total_active_cores = total_active_cores
@@ -52,6 +56,42 @@ class Tower:
             # اگر این هسته، آخرین هسته‌ای بود که کارش تمام شد، برج مراقبت را بیدار کن
             if self.cores_finished_this_tick == self.total_active_cores:
                 self.cv.notify_all()
+
+    # وقتی که در ترمینال 3 یک هواپیمای اضطراری نیاز به باند داشت
+    def emergency_acquire_r1(self, requester):
+
+        victim = None
+
+        for core in self.terminal1.cores + self.terminal2.cores:
+            with core.task_lock:
+
+                if core.current_task is None:
+                    continue
+                if core.current_task.state != State.RUNNING:
+                    continue
+                if core.current_task.needs_r1 == 0:
+                    continue
+
+                if victim is None:
+                    victim = core
+
+                elif core.current_task.rem_duration > victim.current_task.rem_duration:
+                    victim = core
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # --- بخش تست کوتاه مکانیزم تیک‌ها ---
 def dummy_core_worker(core_id, tower):

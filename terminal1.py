@@ -14,6 +14,10 @@ class T1Core(threading.Thread):
         
         self.current_task = None
         self.time_slice_budget = 0
+        self.task_lock = threading.Lock()
+
+        # برای توقف اضطراری از سوی ترمینال 3
+        self.resource_preempt_request = False
         
     def run(self):
         local_time = 0
@@ -27,6 +31,20 @@ class T1Core(threading.Thread):
             self.tower.signal_core_done()
 
     def process_tick(self):
+
+        # چک شود که preempt توسط ترمینال 3 رخ داده یا نه
+        if self.resource_preempt_request:
+            self.resource_preempt_request = False
+            # اگه رخ داده بود منابع این تسک رو آزاد کن و تسک رو ready کن تا بده تو صف ready
+            if self.current_task:
+                self.current_task.state = State.READY
+                self.tower.resources.release(
+                    self.current_task.needs_r1,
+                    self.current_task.needs_r2,
+                    self.current_task.needs_r3
+                )
+                self.terminal.wake_up_waiting_tasks()
+
         # ۱. پاکسازی تسک‌های تمام‌شده یا پری‌امپت شده از تیک قبلی
         if self.current_task:
             if self.current_task.state == State.TERMINATED:
@@ -112,6 +130,11 @@ class T1Core(threading.Thread):
                     stolen_task = longest_core.ready_queue.pop()
                     self.current_task = stolen_task
                     self.time_slice_budget = self.current_task.args[0]
+
+    def request_resource_preemption(self):
+        '''preemption from terminal 3'''
+        with self.task_lock:
+            self.resource_preempt_request = True
 
 
 class Terminal1:
