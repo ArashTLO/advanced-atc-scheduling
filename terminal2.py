@@ -130,12 +130,7 @@ class T2Core(threading.Thread):
         with self.task_lock:
             if self.current_task and new_task:
                 # اول چک کن ببین میتونی اختصاص بدی اگه نشد که الکی تسک فعلی رو متوقف نکن
-                if not self.tower.resources.can_acquire(self.current_task.needs_r1 + self.tower.resources.available_r1,
-                                                        self.current_task.needs_r2 + self.tower.resources.available_r2,
-                                                        self.current_task.needs_r3 + self.tower.resources.available_r3,
-                                                        new_task.needs_r1,
-                                                        new_task.needs_r2,
-                                                        new_task.needs_r3) :
+                if not self.tower.resources.can_acquire( self.tower, self.current_task, new_task) :
                     return False
 
             if self.current_task:
@@ -179,7 +174,26 @@ class T2Core(threading.Thread):
             self.preempt_request = task
 
 
-    def request_resource_preemption(self):
-        '''preemption from terminal 3'''
+    # برای recource preemption terminal 3
+    def force_resource_preempt(self):
+
         with self.task_lock:
-            self.resource_preempt_request = True
+            if self.current_task is None:
+                return False
+            # آزاد کردن منابع
+            self.tower.resources.release(
+                self.current_task.needs_r1,
+                self.current_task.needs_r2,
+                self.current_task.needs_r3
+            )
+            # برگرداندن Task به حالت آماده
+            self.current_task.state = State.READY
+            # برگشت به صف ترمینال خودش
+            with self.terminal.rq_lock:
+                self.terminal.ready_queue.append(self.current_task)
+            # مرتب کردن صف
+            self.terminal.sort_ready_queue()
+            # خالی کردن Core
+            self.current_task = None
+
+            return True

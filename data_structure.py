@@ -9,6 +9,12 @@ class State(Enum):
     WAITING = "Waiting"      # منتظر منبع (مثلاً باند خالی است اما گیت نیست) 
     TERMINATED = "Landed/Departed" # کار هواپیما تمام شده است 
 
+
+class ReplaceMode(Enum):
+    TERMINATE = "Termination"
+    SWITCH = "Preemption"
+    START = "NewTask"
+
 # کلاس هواپیما (تسک)
 class Task:
     def __init__(self, name, duration, r1, r2, r3, arrival_time, *args):
@@ -55,10 +61,23 @@ class AirportResources:
                 return True
             return False
 
-    def can_acquire(self, available_r1, available_r2, available_r3, r1, r2, r3):
-        if available_r1 >= r1 and available_r2 >= r2 and available_r3 >= r3:
-            return True
-        else : return False
+    # واقعا منابع رو دستکاری نمیکنه ، فقط برسی میکنه که آیا میتونه درصورتی که تسک1 ازاد بشه به تسک2 منبع کافی بده ؟
+    def can_acquire(self, tower, old_task, new_task ):
+
+        available_r1 = tower.resources.available_r1
+        available_r2 = tower.resources.available_r2
+        available_r3 = tower.resources.available_r3
+
+        if old_task :
+            available_r1 += old_task.needs_r1
+            available_r2 += old_task.needs_r2
+            available_r3 += old_task.needs_r3
+
+        return (
+            available_r1 >= new_task.needs_r1 and
+            available_r2 >= new_task.needs_r2 and
+            available_r3 >= new_task.needs_r3
+        )
 
     def release(self, r1, r2, r3):
         """آزادسازی منابع پس از اتمام کار هواپیما"""

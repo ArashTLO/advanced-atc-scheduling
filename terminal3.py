@@ -1,5 +1,5 @@
 import threading
-from data_structure import State
+from data_structure import State , ReplaceMode
 
 class Terminal3:
 
@@ -50,16 +50,44 @@ class Terminal3:
 
     def check_preemption(self, task):
 
+        # اگر Core بیکار است، نیازی به Preemption نیست
         with self.core.task_lock:
-
-            # اگر Core بیکار است، نیازی به Preemption نیست
             if self.core.current_task is None:
                 return False
 
-            # اگر Task جدید اولویت بالاتری دارد
-            if task.args[0] < self.core.current_task.args[0]:
+        # اگر Task جدید اولویت بالاتری دارد
+        if task.args[0] < self.core.current_task.args[0]:
 
-                self.core.request_preemption(task)
+            self.core.request_preemption(task)
+            return True
+
+        return False
+
+    def check_deadlines(self):
+
+        with self.rq_lock:
+
+            # Task های Ready
+            for task in self.ready_queue:
+
+                deadline = task.arrival_time + task.args[0]
+
+                if self.tower.global_time > deadline:
+                    print("Failure")
+                    self.tower.is_running = False
+                    return True
+
+        # Task در حال اجرا
+        if self.core.current_task:
+
+            deadline = (
+                self.core.current_task.arrival_time +
+                self.core.current_task.args[0]
+            )
+
+            if self.tower.global_time > deadline:
+                print("Failure")
+                self.tower.is_running = False
                 return True
 
         return False
@@ -91,101 +119,124 @@ class T3Core(threading.Thread):
 
     def process_tick(self):
 
-        # ددلاین ها در ابتدا چک شود 
-        if self.terminal.check_deadlines():
-            return
-
-        if self.preempt_request:
-            if self.replace_current_task(self.preempt_request):
-                self.preempt_request = None
-
         # اگر Task قبلی تمام شده باشد، Core را آزاد کن
         if self.current_task:
             if self.current_task.state == State.TERMINATED:
                 self.current_task = None
+        
+        # در ابتدای تیک چک کن ببین تسکی از ددلاینش نگذشته باشه
+        if self.terminal.check_deadlines():
+            return
+
+        # چک شود که تسک جدیدی با دوره کمتر نیامده باشد 
+        # اگر اومده اقدامات لازم انجام بشه
+        if self.preempt_request:
+            if self.replace_current_task(self.preempt_request, ReplaceMode.SWITCH):
+                self.preempt_request = None
 
         # اگر Core بیکار است، یک Task جدید بردار
         if self.current_task is None:
-            self.replace_current_task(self.terminal.pick_next_task())
+            self.replace_current_task(self.terminal.pick_next_task(), ReplaceMode.START)
 
         # اگر Task در حال اجراست
         if self.current_task and self.current_task.state == State.RUNNING:
-
             # یک Tick اجرا
             self.current_task.rem_duration -= 1
-
             # اگر تمام شد
             if self.current_task.rem_duration <= 0:
+                self.replace_current_task(None, ReplaceMode.TERMINATE)
 
-                self.current_task.state = State.TERMINATED
-
-                self.replace_current_task(None)
-
-    def replace_current_task(self, new_task):
+    def replace_current_task(self, new_task, mode):
 
         with self.task_lock:
-
-            # آزاد کردن منابع Task قبلی
-            if self.current_task:
-
-                self.tower.resources.release(
-                    self.current_task.needs_r1,
-                    self.current_task.needs_r2,
-                    self.current_task.needs_r3
-                )
-
-            # جایگزین کردن Task جدید
-            self.current_task = new_task
-
-            if self.current_task is None:
-                return False
-
-            # تلاش برای گرفتن منابع
-            success = self.tower.resources.acquire(
-                self.current_task.needs_r1,
-                self.current_task.needs_r2,
-                self.current_task.needs_r3
-            )
-
-            if success:
-                self.current_task.state = State.RUNNING
-                return True
-
-            # منابع کافی نبود
-            self.current_task.state = State.READY
-            self.terminal.add_back(self.current_task)
-            self.current_task = None
-
-            return False
-
-    def check_deadlines(self):
-
-        with self.rq_lock:
-
-            # Task های Ready
-            for task in self.ready_queue:
-
-                deadline = task.arrival_time + task.args[0]
-
-                if self.tower.global_time > deadline:
-                    print("Failure")
-                    self.tower.is_running = False
+            match mode:
+                case ReplaceMode.TERMINATE:
+                    # آزاد کردن منابع Task قبلی
+                    if self.current_task and self.current_task.state == State.RUNNING:
+                        self.tower.resources.release(
+                            self.current_task.needs_r1,
+                            self.current_task.needs_r2,
+                            self.current_task.needs_r3
+                        )
+                        self.current_task.state = State.TERMINATED
                     return True
 
-        # Task در حال اجرا
-        if self.core.current_task:
+                case ReplaceMode.SWITCH:
+                    
+                    # آزاد کردن منابع Task قبلی
+                    if self.current_task and self.current_task.state == State.RUNNING:
+                        self.tower.resources.release(
+                            self.current_task.needs_r1,
+                            self.current_task.needs_r2,
+                            self.current_task.needs_r3
+                        )
+                        self.current_task.state = State.READY
+                        self.terminal.add_back(self.current_task)
+                        self.terminal.sort_ready_queue()                
 
-            deadline = (
-                self.core.current_task.arrival_time +
-                self.core.current_task.args[0]
-            )
+                    # جایگزین کردن Task جدید
+                    self.current_task = new_task
 
-            if self.tower.global_time > deadline:
-                print("Failure")
-                self.tower.is_running = False
-                return True
+                    # تلاش برای گرفتن منابع برای تسک جدید
+                    success = self.tower.resources.acquire(
+                        self.current_task.needs_r1,
+                        self.current_task.needs_r2,
+                        self.current_task.needs_r3
+                    )
 
-        return False
+                    if success:
+                        self.current_task.state = State.RUNNING
+                        return True
+
+                    # اگر منابع کافی نبود یه تاور درخواست بده تا از ترمینال های دیگه منابع رو آزاد کنه
+                    else : 
+                        success = self.tower.emergency_acquire_r1(self.current_task)
+
+                    if success:
+                        success = self.tower.resources.acquire(
+                            self.current_task.needs_r1,
+                            self.current_task.needs_r2,
+                            self.current_task.needs_r3
+                        )
+                        if success:
+                            self.current_task.state = State.RUNNING
+                            return True
+                        
+                    return False
+                
+                case ReplaceMode.START:
+
+                    # جایگزین کردن Task جدید
+                    if new_task is None : return False
+
+                    self.current_task = new_task
+
+                    # تلاش برای گرفتن منابع برای تسک جدید
+                    success = self.tower.resources.acquire(
+                        self.current_task.needs_r1,
+                        self.current_task.needs_r2,
+                        self.current_task.needs_r3
+                    )
+
+                    if success:
+                        self.current_task.state = State.RUNNING
+                        return True
+
+                    # اگر منابع کافی نبود یه تاور درخواست بده تا از ترمینال های دیگه منابع رو آزاد کنه
+                    else : 
+                        success = self.tower.emergency_acquire_r1(self.current_task)
+
+                    if success:
+                        success = self.tower.resources.acquire(
+                            self.current_task.needs_r1,
+                            self.current_task.needs_r2,
+                            self.current_task.needs_r3
+                        )
+                        if success:
+                            self.current_task.state = State.RUNNING
+                            return True
+                        
+                    return False
 
     def request_preemption(self, task):
 

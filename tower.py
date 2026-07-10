@@ -67,7 +67,7 @@ class Tower:
 
                 if core.current_task is None:
                     continue
-                if core.current_task.state != State.RUNNING:
+                if core.current_task.state != state.RUNNING:
                     continue
                 if core.current_task.needs_r1 == 0:
                     continue
@@ -77,6 +77,12 @@ class Tower:
 
                 elif core.current_task.rem_duration > victim.current_task.rem_duration:
                     victim = core
+
+        if victim:
+            victim.force_resource_preempt()
+            return True
+
+        return False
 
 
 

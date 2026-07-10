@@ -10,8 +10,8 @@ from data_structure import State
 def main():
     resources, tasks_by_terminal = parse_input('input.txt')
     
-    # تغییر مهم: ۴ هسته فعال (۳ هسته ترمینال + ۱ نخ اینجکتور)
-    TOTAL_ACTIVE_CORES = 6
+    # تغییر مهم: 7 هسته فعال (3 هسته ترمینال1 + 2 هسته ترمینال2 + 1 هسته ترمینال3  + 1 نخ اینجکتور)
+    TOTAL_ACTIVE_CORES = 7
     
     my_tower = Tower(resources, TOTAL_ACTIVE_CORES)
     t1 = Terminal1(my_tower)
@@ -36,8 +36,12 @@ def main():
             for task in tasks_by_terminal["T2"]:
                 if task.arrival_time <= local_time and task.state == State.NEW:
                     t2.add_new_task(task)
+
+            for task in tasks_by_terminal["T3"]:
+                if task.arrival_time <= local_time and task.state == State.NEW:
+                    t3.add_new_task(task)            
                     
-            print_live_log(my_tower, t1)
+            print_live_log(my_tower, t1, t2, t3)
             
             # اینجکتور هم باید اتمام کارش رو اعلام کنه
             my_tower.signal_core_done()
@@ -47,6 +51,8 @@ def main():
     
     t1.start_cores()
     t2.start_cores()
+    t3.start_core()
+    
     my_tower.start_simulation()
     
     injector_thread.join()

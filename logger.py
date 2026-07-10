@@ -1,10 +1,36 @@
-def print_live_log(tower, t1):
+def print_live_log(tower, t1, t2, t3):
+
+    print()
+    print()
     print(f"TIME: {tower.global_time}")
-    print("[Tower]: Resources Available")
-    print(f"R1: {tower.resources.available_r1} | R2: {tower.resources.available_r2} | R3: {tower.resources.available_r3}")
-    
+    print("-" * 48)
+
+    print_tower(tower)
+
+    print("-" * 48)
+
+    print_terminal1(t1)
+
+    print("-" * 48)
+
+    print_terminal2(t2)
+
+    print("-" * 48)
+
+    print_terminal3(t3)    
+
+def print_tower(tower) :
+    print(
+        f"[Tower]: Resources Available -> "
+        f"R1: {tower.resources.available_r1} | "
+        f"R2: {tower.resources.available_r2} | "
+        f"R3: {tower.resources.available_r3}"
+    )
+
+def print_terminal1(t1) :
+
     print("[Terminal 1 - General]")
-    
+
     # فرمت کردن صف انتظار
     with t1.wq_lock:
         wq_items = []
@@ -17,14 +43,83 @@ def print_live_log(tower, t1):
         wq_str = ", ".join(wq_items)
         
     print(f"Waiting Queue: [{wq_str}]")
-    
+
     # فرمت کردن وضعیت هسته‌ها
     for core in t1.cores:
+        with core.task_lock:
+            if core.current_task:
+                print(
+                    f"Core {core.core_id} (Running): "
+                    f"{core.current_task.name} "
+                    f"(Rem: {core.current_task.rem_duration})"
+                )
+
+            else:
+                print(
+                    f"Core {core.core_id} (Idle)"
+                )
+
+def print_terminal2(t2):
+
+    print("[Terminal 2 - Cargo] - DEADLOCK CHECK: SAFE")
+
+    with t2.rq_lock:
+
+        rq_items = []
+
+        for task in t2.ready_queue:
+            rq_items.append(task.name)
+
+        rq_str = ", ".join(rq_items)
+
+    print(f"Ready Queue: [{rq_str}]")
+
+    for core in t2.cores:
+
+        with core.task_lock:
+
+            if core.current_task:
+
+                print(
+                    f"Core {core.core_id} (Running): "
+                    f"{core.current_task.name} "
+                    f"(Rem: {core.current_task.rem_duration})"
+                )
+
+            else:
+
+                print(
+                    f"Core {core.core_id} (Idle)"
+                )
+
+
+
+def print_terminal3(t3):
+
+    print("[Terminal 3 - Emergency]")
+
+    core = t3.core
+
+    with core.task_lock:
+
         if core.current_task:
-            # در صورتی که تسک در حال اجرا باشد
-            print(f"Core {core.core_id} (Running): {core.current_task.name} (Rem: {core.current_task.rem_duration})")
+
+            deadline = (
+                core.current_task.arrival_time +
+                core.current_task.args[0]
+            )
+
+            deadline_remaining = (
+                deadline -
+                t3.tower.global_time
+            )
+
+            print(
+                f"Core 1 (Running): "
+                f"{core.current_task.name} "
+                f"(Deadline in: {deadline_remaining} ticks)"
+            )
+
         else:
-            # در صورتی که هسته بیکار باشد
-            print(f"Core {core.core_id} (Idle)")
-            
-    print("-" * 40)
+
+            print("Core 1 (Idle)")
