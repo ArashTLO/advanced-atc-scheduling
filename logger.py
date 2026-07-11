@@ -1,4 +1,4 @@
-def print_live_log(tower, t1, t2, t3):
+def print_live_log(tower, t1, t2, t3, t4):
 
 
     print("\n\n\n")
@@ -20,6 +20,10 @@ def print_live_log(tower, t1, t2, t3):
     print("-" * 50)
 
     print_terminal3(t3)  
+
+    print("-" * 50)
+
+    print_terminal4(t4)
   
 
 def print_tower(tower) :
@@ -124,6 +128,40 @@ def print_terminal3(t3):
         else:
 
             print("Core 1 (Idle)")
+
+
+def print_terminal4(t4):
+
+    print("[Terminal 4 - Military]")
+
+    with t4.rq_lock:
+
+        rq_items = []
+
+        for task in t4.ready_queue:
+            rq_items.append(task.name)
+
+        rq_str = ", ".join(rq_items)
+
+    print(f"Ready Queue: [{rq_str}]")
+
+    for core in t4.cores:
+
+        with core.task_lock:
+
+            if core.current_task:
+
+                print(
+                    f"Core {core.core_id} (Running): "
+                    f"{core.current_task.name} "
+                    f"(Rem: {core.current_task.rem_duration})"
+                )
+
+            else:
+
+                print(
+                    f"Core {core.core_id} (Idle)"
+                )
 
 
 def print_final_log(tasks):

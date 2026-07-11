@@ -169,6 +169,7 @@ class T3Core(threading.Thread):
                             self.current_task.needs_r3
                         )
                         self.current_task.state = State.TERMINATED
+                        self.tower.resource_released()
                     return True
 
                 case ReplaceMode.SWITCH:

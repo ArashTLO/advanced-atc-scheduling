@@ -21,7 +21,7 @@ class Task:
     def __init__(self, name, duration, r1, r2, r3, arrival_time, *args):
         self.name = name
         self.duration = int(duration)          # زمان کل مورد نیاز
-        self.rem_duration = int(duration)      # زمان باقی‌مانده (برای SRTF و آپدیت تیک‌ها)
+        self.rem_duration = int(duration)      # زمان باقی‌مانده
         
         self.needs_r1 = int(r1)                # نیاز به باند (Runway)
         self.needs_r2 = int(r2)                # نیاز به گیت (Gate)

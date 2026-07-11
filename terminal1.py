@@ -111,7 +111,7 @@ class T1Core(threading.Thread):
                         self.current_task.needs_r2, 
                         self.current_task.needs_r3
                     )
-                    self.terminal.wake_up_waiting_tasks()
+                    self.tower.resource_released()
                     
                 # بررسی اتمام تایم‌اسلایس
                 elif self.time_slice_budget <= 0:
@@ -121,7 +121,7 @@ class T1Core(threading.Thread):
                         self.current_task.needs_r2, 
                         self.current_task.needs_r3
                     )
-                    self.terminal.wake_up_waiting_tasks()
+                    self.tower.resource_released()
                     # نکته مهم: تسک را اینجا پاک نمی‌کنیم تا لاگر بتواند آن را ببیند!
                     # در تیک بعدی، بخش اول (پاکسازی) آن را به صف منتقل می‌کند.
 

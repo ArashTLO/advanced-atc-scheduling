@@ -46,7 +46,8 @@ class Tower(threading.Thread):
                 self,
                 self.terminal1,
                 self.terminal2,
-                self.terminal3)
+                self.terminal3,
+                self.terminal4)
 
             if self.simulation_finished():
                 print("\n\n","="*20 , "🗼 Tower: Simulation Ended." , "="*20 , "\n")
@@ -90,6 +91,10 @@ class Tower(threading.Thread):
             if task.arrival_time <= self.global_time and task.state == State.NEW:
                 self.terminal3.add_new_task(task)
 
+        for task in self.tasks_by_terminal["T4"]:
+            if task.arrival_time <= self.global_time and task.state == State.NEW:
+                self.terminal4.add_new_task(task)        
+
 
     def load_tasks(self, tasks):
         self.tasks_by_terminal = tasks
@@ -114,7 +119,6 @@ class Tower(threading.Thread):
         for task_list in self.tasks_by_terminal.values():
             for task in task_list:
                 if task.state == State.NEW:
-                    print(task.name, task.arrival_time, self.global_time)
                     return False
 
         # ترمینال 1
@@ -149,6 +153,16 @@ class Tower(threading.Thread):
                 return False
 
 
+        # ترمینال 4
+        with self.terminal4.rq_lock:
+            if self.terminal4.ready_queue:
+                return False
+
+        for core in self.terminal4.cores:
+            with core.task_lock:
+                if core.current_task:
+                    return False
+
         return True
 
 
@@ -181,54 +195,4 @@ class Tower(threading.Thread):
 
     def resource_released(self):
         self.terminal1.wake_up_waiting_tasks()
-
-
-
-
-
-
-
-
-
-
-
-# --- بخش تست کوتاه مکانیزم تیک‌ها ---
-def dummy_core_worker(core_id, tower):
-    """یک هسته تستی برای نمایش نحوه تعامل با برج مراقبت"""
-    local_time = 0
-    while tower.is_running:
-        # ۱. صبر برای شروع تیک جدید
-        local_time = tower.wait_for_next_tick(local_time)
-        
-        if not tower.is_running:
-            break
-            
-        # ۲. انجام کارهای هسته (مثلاً زمان‌بندی تسک‌ها)
-        print(f"   [Core {core_id}] Processing at TICK: {local_time}")
-        
-        # ۳. اعلام پایان کار در این تیک به برج مراقبت
-        tower.signal_core_done()
-
-if __name__ == "__main__":
-    from data_structure import AirportResources
-    
-    # ساخت منابع تستی
-    resources = AirportResources(2, 5, 2)
-    
-    # فرض می‌کنیم کلاً ۳ هسته فعال (مثلاً برای ترمینال ۱) داریم
-    TOTAL_CORES = 3
-    my_tower = Tower(resources, TOTAL_CORES)
-    
-    # ایجاد و استارت تردهای هسته‌ها
-    threads = []
-    for i in range(TOTAL_CORES):
-        t = threading.Thread(target=dummy_core_worker, args=(i+1, my_tower))
-        t.start()
-        threads.append(t)
-        
-    # استارت ترد برج مراقبت (نخ اصلی)
-    my_tower.start_simulation()
-    
-    # صبر برای بسته شدن همه تردها
-    for t in threads:
-        t.join()
+        self.terminal2.sort_ready_queue()

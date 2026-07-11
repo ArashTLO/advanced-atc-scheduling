@@ -24,14 +24,14 @@ def parse_input(file_path):
     
     # پردازش تسک‌ها (از خط چهارم به بعد)
     for line in cleaned_lines[3:]:
-        # کاراکتر $ نشان‌دهنده تغییر ترمینال است [cite: 107]
+        # کاراکتر $ نشان‌دهنده تغییر ترمینال است 
         if line == '$':
             current_terminal += 1
             continue
             
         parts = [p.strip() for p in line.split(',')]
         
-        # پارس کردن مقادیر ثابت برای تمام ترمینال‌ها [cite: 99]
+        # پارس کردن مقادیر ثابت برای تمام ترمینال‌ها 
         name = parts[0]
         duration = int(parts[1])
         needs_r1 = int(parts[2])
