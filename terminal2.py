@@ -1,5 +1,5 @@
 import threading
-from data_structure import State
+from data_structure import State , ReplaceMode
 
 class Terminal2:
     def __init__(self, tower):
@@ -49,6 +49,7 @@ class Terminal2:
                 if core.current_task is None :
                     return False
 
+        # اون هسته ای انتخاب میشه که تسک فعلیش زمان باقی مانده بیشتری داشته باشه
         victim = max(self.cores, key=lambda core: core.current_task.rem_duration)
 
         if victim.current_task.rem_duration <= task.rem_duration:
@@ -76,9 +77,6 @@ class T2Core(threading.Thread):
         self.preempt_request = None
         self.task_lock = threading.Lock()
 
-        # برای توقف اضطراری از سوی ترمینال 3
-        self.resource_preempt_request = False
-
 
     def run(self):
 
@@ -94,24 +92,21 @@ class T2Core(threading.Thread):
 
 
     def process_tick(self):
-        # چک کن که آیا preemption از طرف ترمینال 3 اتفاق افتاده ؟
-        if self.resource_preempt_request:
-            if self.current_task: self.replace_current_task(None)
-            self.resource_preempt_request = False
-
-        # چک کن که ایا preemption اتفاق افتاده ؟
-        if self.preempt_request:
-            if self.replace_current_task(self.preempt_request):
-                self.preempt_request = None
 
         # اگر Task قبلی تمام شده باشد، Core را آزاد کن
         if self.current_task:
             if self.current_task.state == State.TERMINATED:
+                self.current_task.finish_time = self.tower.global_time
                 self.current_task = None
+
+        # چک کن که ایا preemption اتفاق افتاده ؟
+        if self.preempt_request:
+            if self.replace_current_task(self.preempt_request ,  ReplaceMode.SWITCH):
+                self.preempt_request = None
 
         # اگر Core بیکار است، یک Task جدید بردار
         if self.current_task is None:
-            self.replace_current_task(self.terminal.pick_next_task())
+            self.replace_current_task(self.terminal.pick_next_task() , ReplaceMode.START)
 
         # اگه در حال اجرای تسک بودی :
         if self.current_task and self.current_task.state == State.RUNNING:
@@ -119,54 +114,92 @@ class T2Core(threading.Thread):
             self.current_task.rem_duration -= 1
             # اگر زمان باقی مونده تسک تموم شده
             if self.current_task.rem_duration <= 0:
-                #  ان را ترمینیت کن
-                self.current_task.state = State.TERMINATED
-                # و منابعش رو آزاد کن
-                self.replace_current_task(None)
+                #  ان را ترمینیت کن و  منابعش رو آزاد کن
+                self.replace_current_task(None, ReplaceMode.TERMINATE)
+                self.tower.resource_released()
 
 
-    def replace_current_task(self, new_task):
+    def replace_current_task(self, new_task, mode):
 
         with self.task_lock:
-            if self.current_task and new_task:
-                # اول چک کن ببین میتونی اختصاص بدی اگه نشد که الکی تسک فعلی رو متوقف نکن
-                if not self.tower.resources.can_acquire( self.tower, self.current_task, new_task) :
-                    return False
-
-            if self.current_task:
-                self.tower.resources.release(
-                    self.current_task.needs_r1,
-                    self.current_task.needs_r2,
-                    self.current_task.needs_r3
-                )
-
-                if self.current_task.state != State.TERMINATED :
-                    self.current_task.state = State.READY
-                    self.terminal.add_back(self.current_task)
-
-                self.terminal.sort_ready_queue()
-
-            self.current_task = new_task
-
-            if self.current_task:
-
-                success = self.tower.resources.acquire(
-                    self.current_task.needs_r1,
-                    self.current_task.needs_r2,
-                    self.current_task.needs_r3
-                )
-
-                # اگه تونستی منابع رو اختصاص بدی تسک رو اجرا کن
-                if success:
-                    self.current_task.state = State.RUNNING
+            match mode:
+                case ReplaceMode.TERMINATE:
+                    # آزاد کردن منابع Task قبلی
+                    if self.current_task and self.current_task.state == State.RUNNING:
+                        self.tower.resources.release(
+                            self.current_task.needs_r1,
+                            self.current_task.needs_r2,
+                            self.current_task.needs_r3
+                        )
+                        self.tower.resource_released()
+                        self.current_task.state = State.TERMINATED
                     return True
 
-                # اگه منابع کافی وجود نداشت ، تسک را به اخر صف بفرست
-                else:
-                    self.current_task.state = State.READY
-                    self.terminal.add_back(self.current_task)
-                    self.current_task = None
-            return False
+                case ReplaceMode.SWITCH:
+
+                    # اول چک کن ببین میتونی اختصاص بدی اگه نشد که الکی تسک فعلی رو متوقف نکن
+                    if not self.tower.resources.can_acquire( self.tower, self.current_task, new_task) :
+                        return False
+                    
+                    # آزاد کردن منابع Task قبلی
+                    if self.current_task and self.current_task.state == State.RUNNING:
+                        self.tower.resources.release(
+                            self.current_task.needs_r1,
+                            self.current_task.needs_r2,
+                            self.current_task.needs_r3
+                        )
+                        self.current_task.state = State.READY
+                        self.terminal.add_back(self.current_task)
+                        self.terminal.sort_ready_queue()                
+
+                    # جایگزین کردن Task جدید
+                    self.current_task = new_task
+
+                    # تلاش برای گرفتن منابع برای تسک جدید
+                    success = self.tower.resources.acquire(
+                        self.current_task.needs_r1,
+                        self.current_task.needs_r2,
+                        self.current_task.needs_r3
+                    )
+
+                    # اگه تونستی منابع رو اختصاص بدی تسک رو اجرا کن
+                    if success:
+                        self.current_task.state = State.RUNNING
+                        return True
+
+                    # اگه منابع کافی وجود نداشت ، تسک را به اخر صف بفرست و صف رو مرتب نکن
+                    else:
+                        self.current_task.state = State.READY
+                        self.terminal.add_back(self.current_task)
+                        self.current_task = None
+                        return False
+                
+                case ReplaceMode.START:
+
+                    # جایگزین کردن Task جدید
+                    if new_task is None : return False
+
+                    self.current_task = new_task
+
+                    # تلاش برای گرفتن منابع برای تسک جدید
+                    success = self.tower.resources.acquire(
+                        self.current_task.needs_r1,
+                        self.current_task.needs_r2,
+                        self.current_task.needs_r3
+                    )
+
+                    # اگه تونستی منابع رو اختصاص بدی تسک رو اجرا کن
+                    if success:
+                        self.current_task.state = State.RUNNING
+                        return True
+                    
+                    # اگه منابع کافی وجود نداشت ، تسک را به اخر صف بفرست و صف رو مرتب نکن
+                    else:
+                        self.current_task.state = State.READY
+                        self.terminal.add_back(self.current_task)
+                        self.current_task = None
+                        return False
+
 
     def request_preemption(self, task):
         # ترمینال از Core می‌خواهد در اولین فرصت این Task را اجرا کند

@@ -1,6 +1,43 @@
 import threading
 from data_structure import State
 
+class Terminal1:
+    def __init__(self, tower):
+        self.tower = tower
+        # ایجاد ۳ هسته مجزا برای ترمینال
+        self.cores = [T1Core(1, tower, self), T1Core(2, tower, self), T1Core(3, tower, self)]
+        
+        # صف انتظار مشترک
+        self.waiting_queue = []
+        self.wq_lock = threading.Lock()
+
+    def start_cores(self):
+        for core in self.cores:
+            core.start()
+
+    def add_new_task(self, task):
+        """اضافه کردن پرواز جدید به هسته اولیه مشخص شده در فایل ورودی"""
+        task.state = State.READY
+        core_id = task.args[0] - 1 # تبدیل Initial_Core_ID به ایندکس 0 تا 2
+        if 0 <= core_id < 3:
+            with self.cores[core_id].rq_lock:
+                self.cores[core_id].ready_queue.append(task)
+
+    def add_to_waiting(self, task):
+        with self.wq_lock:
+            self.waiting_queue.append(task)
+
+    def wake_up_waiting_tasks(self):
+        """منتقل کردن تمام تسک‌های منتظر به کوتاه‌ترین صف‌های Ready برای تلاش مجدد"""
+        with self.wq_lock:
+            while self.waiting_queue:
+                task = self.waiting_queue.pop(0)
+                task.state = State.READY
+                # پیدا کردن خلوت‌ترین هسته برای تزریق تسک
+                shortest_core = min(self.cores, key=lambda c: len(c.ready_queue))
+                with shortest_core.rq_lock:
+                    shortest_core.ready_queue.append(task)
+
 class T1Core(threading.Thread):
     def __init__(self, core_id, tower, terminal):
         super().__init__()
@@ -32,6 +69,7 @@ class T1Core(threading.Thread):
         # ۱. پاکسازی تسک‌های تمام‌شده یا پری‌امپت شده از تیک قبلی
         if self.current_task:
             if self.current_task.state == State.TERMINATED:
+                self.current_task.finish_time = self.tower.global_time
                 self.current_task = None
             elif self.current_task.state == State.READY:
                 with self.rq_lock:
@@ -93,7 +131,7 @@ class T1Core(threading.Thread):
             if self.ready_queue:
                 self.current_task = self.ready_queue.pop(0)
                 # در ترمینال 1، پارامتر Weight در خانه صفر specific_args ذخیره شده است
-                self.time_slice_budget = self.current_task.args[0] 
+                self.time_slice_budget = self.current_task.args[1] 
                 return
 
         # الگوریتم Load Balancing (Work Stealing)
@@ -113,7 +151,7 @@ class T1Core(threading.Thread):
                     # برداشتن از انتهای صف هسته شلوغ
                     stolen_task = longest_core.ready_queue.pop()
                     self.current_task = stolen_task
-                    self.time_slice_budget = self.current_task.args[0]
+                    self.time_slice_budget = self.current_task.args[1]
 
     # برای recource preemption terminal 3
     def force_resource_preempt(self):
@@ -137,40 +175,3 @@ class T1Core(threading.Thread):
 
             return True
 
-
-class Terminal1:
-    def __init__(self, tower):
-        self.tower = tower
-        # ایجاد ۳ هسته مجزا برای ترمینال
-        self.cores = [T1Core(1, tower, self), T1Core(2, tower, self), T1Core(3, tower, self)]
-        
-        # صف انتظار مشترک
-        self.waiting_queue = []
-        self.wq_lock = threading.Lock()
-
-    def start_cores(self):
-        for core in self.cores:
-            core.start()
-
-    def add_new_task(self, task):
-        """اضافه کردن پرواز جدید به هسته اولیه مشخص شده در فایل ورودی"""
-        task.state = State.READY
-        core_id = task.args[1] - 1 # تبدیل Initial_Core_ID به ایندکس 0 تا 2
-        if 0 <= core_id < 3:
-            with self.cores[core_id].rq_lock:
-                self.cores[core_id].ready_queue.append(task)
-
-    def add_to_waiting(self, task):
-        with self.wq_lock:
-            self.waiting_queue.append(task)
-
-    def wake_up_waiting_tasks(self):
-        """منتقل کردن تمام تسک‌های منتظر به کوتاه‌ترین صف‌های Ready برای تلاش مجدد"""
-        with self.wq_lock:
-            while self.waiting_queue:
-                task = self.waiting_queue.pop(0)
-                task.state = State.READY
-                # پیدا کردن خلوت‌ترین هسته برای تزریق تسک
-                shortest_core = min(self.cores, key=lambda c: len(c.ready_queue))
-                with shortest_core.rq_lock:
-                    shortest_core.ready_queue.append(task)

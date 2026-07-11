@@ -17,7 +17,7 @@ class Terminal3:
         self.core.start()
 
     def add_new_task(self, task):
-
+        ''' تسک هایی که تازه وارد سیستم میشن رو به صف ردی اضافه می کنه'''
         task.state = State.READY
 
         if not self.check_preemption(task):
@@ -29,6 +29,8 @@ class Terminal3:
 
 
     def pick_next_task(self):
+        ''' تسک با کوتاه ترین زمان دوره رو برمیگردونه'''
+        '''وقتی هسته خالی بود صدا زده میشه'''
 
         with self.rq_lock:
 
@@ -44,12 +46,13 @@ class Terminal3:
             self.ready_queue.sort(key=lambda task: task.args[0])
 
     def add_back(self, task):
-
+        ''' تسکی که از حالت اجرا خارج میشه رو به صف اماده برمی گردونه'''
         with self.rq_lock:
             self.ready_queue.append(task)
 
-    def check_preemption(self, task):
 
+    def check_preemption(self, task):
+        '''وظیفه این تابع اینه که preepmtion رو چک کنه'''
         # اگر Core بیکار است، نیازی به Preemption نیست
         with self.core.task_lock:
             if self.core.current_task is None:
@@ -62,8 +65,11 @@ class Terminal3:
             return True
 
         return False
+    
 
     def check_deadlines(self):
+        ''' وظیفه این تابع اینه که چک کنه ددلاین تسکی رد نشده باشه '''
+        '''اگر شده بود شبیه سازی رو ترمینیت میکنه'''
 
         with self.rq_lock:
 
@@ -74,21 +80,24 @@ class Terminal3:
 
                 if self.tower.global_time > deadline:
                     print("Failure")
-                    self.tower.is_running = False
+                    task.state = State.CRASHED
+                    self.tower.terminate_simulation()
                     return True
 
         # Task در حال اجرا
-        if self.core.current_task:
+        with self.core.task_lock :
+            if self.core.current_task:
 
-            deadline = (
-                self.core.current_task.arrival_time +
-                self.core.current_task.args[0]
-            )
+                deadline = (
+                    self.core.current_task.arrival_time +
+                    self.core.current_task.args[0]
+                )
 
-            if self.tower.global_time > deadline:
-                print("Failure")
-                self.tower.is_running = False
-                return True
+                if self.tower.global_time > deadline:
+                    print("Failure")
+                    task.state = State.CRASHED
+                    self.tower.terminate_simulation()
+                    return True
 
         return False
 
@@ -122,6 +131,7 @@ class T3Core(threading.Thread):
         # اگر Task قبلی تمام شده باشد، Core را آزاد کن
         if self.current_task:
             if self.current_task.state == State.TERMINATED:
+                self.current_task.finish_time = self.tower.global_time
                 self.current_task = None
         
         # در ابتدای تیک چک کن ببین تسکی از ددلاینش نگذشته باشه
@@ -142,7 +152,7 @@ class T3Core(threading.Thread):
         if self.current_task and self.current_task.state == State.RUNNING:
             # یک Tick اجرا
             self.current_task.rem_duration -= 1
-            # اگر تمام شد
+            # اگر تمام شد ترمینیتش کن
             if self.current_task.rem_duration <= 0:
                 self.replace_current_task(None, ReplaceMode.TERMINATE)
 

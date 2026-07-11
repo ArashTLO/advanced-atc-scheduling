@@ -1,23 +1,26 @@
 def print_live_log(tower, t1, t2, t3):
 
-    print()
-    print()
+
+    print("\n\n\n")
+
     print(f"TIME: {tower.global_time}")
-    print("-" * 48)
+
+    print("-" * 50)
 
     print_tower(tower)
 
-    print("-" * 48)
+    print("-" * 50)
 
     print_terminal1(t1)
 
-    print("-" * 48)
+    print("-" * 50)
 
     print_terminal2(t2)
 
-    print("-" * 48)
+    print("-" * 50)
 
-    print_terminal3(t3)    
+    print_terminal3(t3)  
+  
 
 def print_tower(tower) :
     print(
@@ -92,8 +95,6 @@ def print_terminal2(t2):
                     f"Core {core.core_id} (Idle)"
                 )
 
-
-
 def print_terminal3(t3):
 
     print("[Terminal 3 - Emergency]")
@@ -123,3 +124,41 @@ def print_terminal3(t3):
         else:
 
             print("Core 1 (Idle)")
+
+
+def print_final_log(tasks):
+
+    print("\n=========================== FINAL REPORT =============================")
+
+    print(
+        f"{'Task Name':<12}"
+        f"{'Arrival':<10}"
+        f"{'Finish':<10}"
+        f"{'Turnaround':<14}"
+        f"{'Waiting':<10}"
+        f"{'Status'}"
+    )
+
+    print("-" * 70)
+
+    for task_list in tasks.values():
+        for task in task_list:
+
+            finish = task.finish_time if task.finish_time is not None else "-"
+            turnaround = (
+                task.finish_time - task.arrival_time
+                if task.finish_time is not None else "-"
+            )
+            waiting = (
+                turnaround - task.duration
+                if task.finish_time is not None else "-"
+            )
+
+            print(
+                f"{task.name:<12}"
+                f"{task.arrival_time:<10}"
+                f"{finish!s:<10}"
+                f"{turnaround!s:<14}"
+                f"{waiting!s:<10}"
+                f"{task.state.name}"
+            )

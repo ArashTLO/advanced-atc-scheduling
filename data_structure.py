@@ -8,6 +8,7 @@ class State(Enum):
     RUNNING = "Running"      # در حال استفاده از باند یا گیت (در حال اجرا) 
     WAITING = "Waiting"      # منتظر منبع (مثلاً باند خالی است اما گیت نیست) 
     TERMINATED = "Landed/Departed" # کار هواپیما تمام شده است 
+    CRASHED = "Crashed"
 
 
 class ReplaceMode(Enum):
@@ -27,7 +28,8 @@ class Task:
         self.needs_r3 = int(r3)                # نیاز به ماشین سوخت (Fuel Truck)
         
         self.arrival_time = int(arrival_time)
-        
+        self.finish_time = None
+
         # وضعیت اولیه هواپیما 
         self.state = State.NEW
         
