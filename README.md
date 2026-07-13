@@ -15,12 +15,13 @@ This project is developed in **Python 3** and utilizes the OS `threading` librar
 First, ensure that Python is installed on your system. Then, install the Pygame library using the following command:
 ```bash
 pip install pygame
+```
 
 Running the Simulator
 To run the project and launch the graphical interface, execute the following command in your terminal or command prompt:
-
+```bash
 python main.py
-
+```
 Note: The flight input file (input.txt) must be located in the same directory as main.py. Live text logs will be printed in the console, while the visual status is displayed in the graphical window.
 
 🧩 System Architecture and Scheduling Algorithms
