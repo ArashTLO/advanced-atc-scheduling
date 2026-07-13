@@ -28,8 +28,9 @@ def main():
     t3.start_core()
     t4.start_cores()
 
-    tower.start()
-    tower.join()
+    from gui import AirportGUI
+    gui = AirportGUI(tower, t1, t2, t3, t4)
+    gui.start()
 
 if __name__ == "__main__":
     main()

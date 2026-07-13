@@ -6,13 +6,13 @@ def parse_input(file_path):
 
     cleaned_lines = []
     for line in lines:
-        # حذف کامنت‌ها که در فایل نمونه با // مشخص شده‌اند [cite: 110, 116]
+        # حذف کامنت‌ها که در فایل نمونه با // مشخص شده‌اند 
         line = line.split('//')[0].strip()
         # نادیده گرفتن خطوط کاملاً خالی
         if line:
             cleaned_lines.append(line)
 
-    # خواندن مقادیر اولیه منابع فرودگاه (R1, R2, R3) [cite: 93]
+    # خواندن مقادیر اولیه منابع فرودگاه (R1, R2, R3) 
     r1_count = int(cleaned_lines[0])
     r2_count = int(cleaned_lines[1])
     r3_count = int(cleaned_lines[2])
@@ -45,10 +45,10 @@ def parse_input(file_path):
             # ترمینال ۱: وزن و شناسه هسته اولیه 
             specific_args = [int(parts[6]), int(parts[7])]
         elif current_terminal == 3:
-            # ترمینال ۳: ددلاین / دوره تناوب [cite: 102]
+            # ترمینال ۳: ددلاین / دوره تناوب 
             specific_args = [int(parts[6])]
         elif current_terminal == 4:
-            # ترمینال ۴: نام تسک پیش‌نیاز [cite: 103]
+            # ترمینال ۴: نام تسک پیش‌نیاز 
             specific_args = [parts[6]]
             
         # ساخت شیء Task و اضافه کردن آن به لیست ترمینال مربوطه
