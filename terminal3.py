@@ -95,7 +95,7 @@ class Terminal3:
 
                 if self.tower.global_time > deadline:
                     print("Failure")
-                    task.state = State.CRASHED
+                    self.core.current_task.state = State.CRASHED
                     self.tower.terminate_simulation()
                     return True
 
